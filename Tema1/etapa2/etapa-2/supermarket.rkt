@@ -169,10 +169,4 @@
         )))
 
 
-(define C1 (empty-counter 1))
-(define C2 (empty-counter 2))
-(define C3 (empty-counter 3))
-(define C4 (empty-counter 4))
-(define C5 (make-counter 5 12 8 '((remus . 6) (vivi . 4))))
-
 
