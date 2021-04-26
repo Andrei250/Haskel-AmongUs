@@ -150,8 +150,7 @@
 (define (serve-helper acc requests fast-counters slow-counters)
    (if (null? requests)
       (cons acc (foldl (λ (e acm) (if (not (queue-empty? (counter-queue e))) (append acm (list (cons (counter-index e) (counter-queue e)))) acm)) '() (append fast-counters slow-counters)))
-      ;(cons (cons acc (foldl (λ (e acm) (append acm (list (cons (counter-index e) (counter-queue e))))) '() (append fast-counters slow-counters))) (append fast-counters slow-counters))
-      
+     
       (match (car requests)
         [(list 'ensure average) (serve-helper acc (cdr requests) fast-counters (get-new-list-of-counters average fast-counters slow-counters))]
         [(list 'close index) (serve-helper acc (cdr requests) (update close fast-counters index) (update close slow-counters index))]
