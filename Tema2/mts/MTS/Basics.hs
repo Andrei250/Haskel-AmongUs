@@ -359,18 +359,18 @@ isTargetKilled pos target
     un avantaj în prinderea lor.
 -}
 
-moveToDirection :: Direction -> Position -> Position
+moveToDirection :: Direction -> Position -> Game -> Position
 
-moveToDirection dir pos
-    | dir == North = (fst pos - 1, snd pos)
-    | dir == South = (fst pos + 1, snd pos)
-    | dir == East = (fst pos, snd pos + 1)
-    | dir == West = (fst pos, snd pos - 1)
+moveToDirection dir pos game
+    | dir == North = fromMaybe pos (attemptMove (fst pos - 1, snd pos) game)
+    | dir == South = fromMaybe pos (attemptMove (fst pos + 1, snd pos) game)
+    | dir == East = fromMaybe pos (attemptMove (fst pos, snd pos + 1) game)
+    | dir == West = fromMaybe pos (attemptMove (fst pos, snd pos - 1) game)
     | otherwise = pos
 
 advanceGameState :: Direction -> Bool -> Game -> Game
 advanceGameState dir move game = let
-    hnt = moveToDirection dir (hunter game)
+    hnt = moveToDirection dir (hunter game) game
     trg = filter (\x -> not (isTargetKilled hnt x)) (targets game)
     tarPos = foldl (\acc x -> acc ++ [position x]) [] trg
     obsta = obstacles game
