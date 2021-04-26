@@ -378,11 +378,12 @@ advanceGameState dir move game = let
     conn = connections game
     r = rows game
     c = columns game
-    gm = Game trg tarPos obsta gate hnt conn r c
+    gm = Game (targets game) (targetsPos game) obsta gate hnt conn r c
     in if move == False
         then gm
         else let
-            newGame = moveTargets gm
+            gm2 = Game trg tarPos obsta gate hnt conn r c
+            newGame = moveTargets gm2
             trg2 = filter (\x -> not (isTargetKilled hnt x)) (targets newGame)
             tarPos2 = foldl (\acc x -> acc ++ [position x]) [] trg2
             in Game trg2 tarPos2 obsta gate hnt conn r c
@@ -408,6 +409,13 @@ areTargetsLeft game = length (targets game) > 0
 circle :: Position -> Int -> Behavior
 circle = undefined
 
+getTargetFromPos :: Position -> Game -> Maybe Target
+getTargetFromPos pos game
+    | elem (fst pos - 1, snd pos) (targetsPos game) = Just $ head $ filter (\x -> position x == (fst pos - 1, snd pos)) (targets game)
+    | elem (fst pos + 1, snd pos) (targetsPos game) = Just $ head $ filter (\x -> position x == (fst pos + 1, snd pos)) (targets game)
+    | elem (fst pos, snd pos + 1) (targetsPos game) = Just $ head $ filter (\x -> position x == (fst pos, snd pos + 1)) (targets game)
+    | elem (fst pos, snd pos - 1) (targetsPos game) = Just $ head $ filter (\x -> position x == (fst pos, snd pos - 1)) (targets game)
+    | otherwise = Nothing
 
 instance ProblemState Game Direction where
     {-
@@ -416,7 +424,10 @@ instance ProblemState Game Direction where
         Generează succesorii stării curente a jocului.
         Utilizați advanceGameState, cu parametrul Bool ales corespunzător.
     -}
-    successors = undefined
+    successors game = [(North, advanceGameState North False game),
+                        (South, advanceGameState South False game),
+                        (West, advanceGameState West False game),
+                        (East, advanceGameState East False game)]
 
     {-
         *** TODO ***
@@ -424,7 +435,12 @@ instance ProblemState Game Direction where
         Verifică dacă starea curentă este un în care Hunter-ul poate anihila
         un Target. Puteți alege Target-ul cum doriți, în prezența mai multora.
     -}
-    isGoal  = undefined
+    isGoal game
+        | elem (fst (hunter game) - 1, snd (hunter game)) (targetsPos game) = True
+        | elem (fst (hunter game) + 1, snd (hunter game)) (targetsPos game) = True
+        | elem (fst (hunter game), snd (hunter game) + 1) (targetsPos game) = True
+        | elem (fst (hunter game), snd (hunter game) - 1) (targetsPos game) = True
+        | otherwise = False
 
     {-
         *** TODO ***
