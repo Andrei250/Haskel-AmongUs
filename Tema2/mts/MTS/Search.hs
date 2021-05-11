@@ -6,6 +6,7 @@ module Search where
 import ProblemState
 import qualified Data.PSQueue as PQ
 import Data.Maybe
+import Data.Maybe (fromMaybe)
 import Prelude
 import qualified Data.Set as S
 
@@ -21,7 +22,15 @@ import qualified Data.Set as S
     * copiii, ce vor desemna stările învecinate;
 -}
 
-data Node s a = UndefinedNode
+data Node s a = Node {
+    state :: s,
+    parent :: Node s a,
+    hasParent :: Int,
+    adancime :: Int,
+    copii :: [Node s a],
+    action :: a,
+    cost :: Float
+}
 
 {-
     *** TODO ***
@@ -29,10 +38,14 @@ data Node s a = UndefinedNode
 -}
 
 instance Eq s => Eq (Node s a) where
-    _ == _ = undefined
+    Node state1 parent1 hasParent1 adancime1 copii1 action1 cost1 ==
+        Node state2 parent2 hasParent2 adancime2 copii2 action2 cost2 = 
+        state1 == state2
 
 instance Ord s => Ord (Node s a) where
-    _ <= _ = undefined
+    Node state1 parent1 hasParent1 adancime1 copii1 action1 cost1 <=
+        Node state2 parent2 hasParent2 adancime2 copii2 action2 cost2 = 
+        state1 <= state2
 
 {-
     *** TODO ***
@@ -40,22 +53,24 @@ instance Ord s => Ord (Node s a) where
 -}
 
 nodeState :: Node s a -> s
-nodeState = undefined
+nodeState nod = state nod
 
 nodeParent :: Node s a -> Maybe (Node s a)
-nodeParent = undefined
+nodeParent nod = if (hasParent nod) == 1 then Just (parent nod)
+                else Nothing
 
 nodeDepth :: Node s a -> Int
-nodeDepth = undefined
+nodeDepth nod = adancime nod
 
 nodeChildren :: Node s a -> [Node s a]
-nodeChildren = undefined
+nodeChildren nod = copii nod
 
 nodeHeuristic :: Node s a -> Float
-nodeHeuristic = undefined
+nodeHeuristic nod = cost nod
 
 nodeAction :: Node s a -> Maybe a
-nodeAction = undefined
+nodeAction node = if hasParent node == 1 then Just (action node)
+                    else Nothing
 
 {-
     *** TODO ***
@@ -65,8 +80,11 @@ nodeAction = undefined
     departe, recursiv.
 -}
 
+buildTree :: (ProblemState s a, Eq s) => Int -> Node s a -> (a , s) -> Node s a
+buildTree adanc tata nxt = Node (snd nxt) tata 1 adanc (foldl (\ac pr -> ac ++ [buildTree (adanc + 1) (Node (snd nxt) tata 1 adanc undefined (fst nxt) 0) pr]) [] (successors (snd nxt))) (fst nxt) 0
+
 createStateSpace :: (ProblemState s a, Eq s) => s -> Node s a
-createStateSpace initialState = undefined -- initialNode
+createStateSpace initialState = Node initialState undefined 0 0 (foldl (\ac pr -> ac ++ [buildTree 1 (createStateSpace initialState) pr]) [] (successors initialState)) undefined 0
 
 {-
     Funcție ce primește o coadă de priorități și întoarce o pereche
@@ -88,7 +106,7 @@ deleteFindMin pq = (minK, pq')
 -}
 
 suitableSuccs :: (ProblemState s a, Ord s) => Node s a -> (S.Set s) -> [Node s a]
-suitableSuccs node visited = undefined
+suitableSuccs node visited = foldl (\ac child -> if S.member (state child) visited then ac else ac ++ [child]) [] (copii node)
 
 {-
     *** TODO ***
@@ -104,7 +122,17 @@ suitableSuccs node visited = undefined
 -}
 
 insertSucc :: (ProblemState s a, Ord s) => (PQ.PSQ (Node s a) Float) -> Node s a -> PQ.PSQ (Node s a) Float
-insertSucc frontier node = undefined -- newFrontier
+insertSucc frontier node = let
+                cst = h (state node) + fromIntegral (adancime node)
+                ans = PQ.lookup node frontier
+                lastCst = case ans of
+                        Just y -> y
+                        Nothing -> -1.0
+                in if lastCst == -1.0 then PQ.insert node cst frontier
+                    else if cst < lastCst then let
+                        newPq = PQ.delete node frontier
+                        in PQ.insert node cst newPq
+                        else frontier
 
 {-
     *** TODO ***
@@ -114,7 +142,10 @@ insertSucc frontier node = undefined -- newFrontier
 -}
 
 insertSuccs :: (ProblemState s a, Ord s) => (Node s a) -> (PQ.PSQ (Node s a) Float) -> (S.Set s) -> (PQ.PSQ (Node s a) Float)
-insertSuccs node frontier visited = undefined --newFrontier
+insertSuccs node frontier visited = let
+    validNodes = suitableSuccs node visited
+    in if null validNodes then frontier
+        else foldl insertSucc frontier validNodes
 
 {-
     *** TODO ***
@@ -127,8 +158,20 @@ insertSuccs node frontier visited = undefined --newFrontier
         - se introduc succesorii în frontieră
 -}
 
+emptyNode :: Node s a
+emptyNode = Node undefined undefined (-1) (-1) undefined undefined (-1)
+
 astar' :: (ProblemState s a, Ord s) => (S.Set s) -> (PQ.PSQ (Node s a) Float) -> Node s a
-astar' visited frontier = undefined -- goalNode
+astar' visited frontier = if PQ.null frontier then emptyNode
+    else let
+        pair = deleteFindMin frontier
+        nd = fst pair
+        pqNew = snd pair
+        newVisited = S.insert (state nd) visited
+        newPq = insertSuccs nd pqNew newVisited
+        in if not $ isGoal (state nd) then
+                astar' newVisited newPq
+                else nd
 
 {-
     *** TODO ***
@@ -139,7 +182,11 @@ astar' visited frontier = undefined -- goalNode
 -}
 
 astar :: (ProblemState s a, Ord s) => Node s a -> Node s a
-astar initialNode = undefined -- goalNode
+astar initialNode = let
+    pq = PQ.empty
+    pqLast = insertSucc pq initialNode
+    st = S.empty
+    in astar' st pqLast
 
 {-
     *** TODO ***
@@ -151,4 +198,6 @@ astar initialNode = undefined -- goalNode
 -}
 
 extractPath :: Node s a -> [(a, s)]
-extractPath goalNode = undefined
+extractPath goalNode = let
+    nodes = takeWhile (\nod -> hasParent nod == 1) $ iterate (\nd -> parent nd) goalNode
+    in reverse $ foldl (\ac el -> ac ++ [(action el, state el)]) [] nodes

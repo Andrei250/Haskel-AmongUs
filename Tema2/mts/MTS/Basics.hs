@@ -371,7 +371,7 @@ moveToDirection dir pos game
 advanceGameState :: Direction -> Bool -> Game -> Game
 advanceGameState dir move game = let
     hnt = moveToDirection dir (hunter game) game
-    trg = filter (\x -> not (isTargetKilled hnt x)) (targets game)
+    trg = filter (\x -> (isTargetKilled hnt x) == False) (targets game)
     tarPos = foldl (\acc x -> acc ++ [position x]) [] trg
     obsta = obstacles game
     gate = gateways game
@@ -384,7 +384,7 @@ advanceGameState dir move game = let
         else let
             gm2 = Game trg tarPos obsta gate hnt conn r c
             newGame = moveTargets gm2
-            trg2 = filter (\x -> not (isTargetKilled hnt x)) (targets newGame)
+            trg2 = filter (\x -> (isTargetKilled hnt x) == False) (targets newGame)
             tarPos2 = foldl (\acc x -> acc ++ [position x]) [] trg2
             in Game trg2 tarPos2 obsta gate hnt conn r c
 
@@ -394,7 +394,7 @@ advanceGameState dir move game = let
     Verifică dacă mai există Target-uri pe table de joc.
 -}
 areTargetsLeft :: Game -> Bool
-areTargetsLeft game = length (targets game) > 0
+areTargetsLeft game = null (targets game)  
 
 {-
     *** BONUS TODO ***
@@ -440,7 +440,7 @@ instance ProblemState Game Direction where
         | elem (fst (hunter game) + 1, snd (hunter game)) (targetsPos game) = True
         | elem (fst (hunter game), snd (hunter game) + 1) (targetsPos game) = True
         | elem (fst (hunter game), snd (hunter game) - 1) (targetsPos game) = True
-        | otherwise = False
+        | otherwise = areTargetsLeft game
 
     {-
         *** TODO ***
@@ -448,7 +448,11 @@ instance ProblemState Game Direction where
         Euristica euclidiană (vezi hEuclidian mai jos) până la Target-ul ales
         de isGoal.
     -}
-    h = undefined
+    h game = let
+        target = fromMaybe (Target (0, 0) goEast) (getTargetFromPos (hunter game) game)
+        in if (position target) == (0, 0) then
+            0.0
+            else hEuclidean (position target) (hunter game)
 
 {-
      ** NU MODIFICATI **
